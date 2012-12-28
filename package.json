@@ -1,0 +1,10 @@
+{
+  "name": "basbosa-assets",
+  "version": "0.0.1",
+  "description": "A super easy assets helper for express",
+  "main": ".assets.js",
+  
+  "dependencies": {
+    "requirejs": "2.0.4"
+  }
+}
