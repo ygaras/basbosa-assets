@@ -3,23 +3,29 @@ var RequireJs = require('requirejs'),
   Crypto = require('crypto'), 
   Path = require('path');
 
-module.exports = {
+// TODO:
+// 2- Add support for watching files and rebuilding for all affected contexts
+// 3- Investigate the delayed  first response 
+// 4- Finish
+var BasbosaAssets = function(options) {
+  this.setOptions(options);
+};
+module.exports = BasbosaAssets;
+
+BasbosaAssets.prototype = {
 
   options : {
-    baseUrl : APP_PATH ,
-    name : null, 
-    out : PUBLIC_PATH + '/build/main',
-    optimize : 'uglify',
+    enableOpt : false,
   },
   
-  contexts : { },
-  
-  init : function(options) {
-    for (var key in this.options) {
-      if (typeof options[key] !== 'undefined') this.options[key] = options[key]; 
+  contexts : {},
+    
+  setOptions : function(options) {
+    options = options || {};
+    for (var key in options) {
+      this.options[key] = options[key]; 
     }
   },
-  
   
   watchedFiles : [],
   
@@ -52,6 +58,8 @@ module.exports = {
   
   flushCjs : function(context) {
     if (typeof context === 'undefined') context = 'default';
+    if (!this.options.enableOpt) return this.flushJs(context); 
+    
     if (!this.contexts[context].cjs) {
       this.processJs(context);
       return this.flushJs(context);
@@ -90,24 +98,23 @@ module.exports = {
         contents = 'define=function(){};' + contents;
       }
       
-      Fs.writeFile(target, contents);
+      Fs.writeFileSync(target, contents);
 
       Fs.readdir(Path.dirname(target), function(err, files) {
         files.forEach(function(file) {
           // Delete all old build files
-          //Basbosa('Logger').('checking file('
-          file = Path.dirname(target) + '/' + file;
+          file = Path.dirname(build.out) + '/' + file;
           if (file.indexOf(build.out) > -1 && file.indexOf(digest) == -1) {
-            Basbosa('Logger').info('Deleting ' + file);
-            Fs.unlink(file);
+            
+            Fs.unlink(file, function(err) {
+              if (err) throw err;
+            });
           }
         });
       });
       
       target = target.replace(build.baseUrl, '');
       self.contexts[context].cjs = '<script src="' + target + '"></script>';
-      self.contexts[context].cjs.replace(build.baseUrl, '');
-
     });   
   }
 };
