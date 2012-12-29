@@ -3,32 +3,52 @@ var RequireJs = require('requirejs'),
   Crypto = require('crypto'), 
   Path = require('path');
 
-// TODO:
-// 2- Add support for watching files and rebuilding for all affected contexts
-// 3- Investigate the delayed  first response 
-// 4- Finish
-var BasbosaAssets = function(options) {
-  this.setOptions(options);
+var BasbosaAssets = function(requireJsOptions, extraOptions) {
+  // Initialize the default state of enabling compression based on current environment
+  var env = process.env.NODE_ENV || 'development';
+  extraOptions = extraOptions || {};
+  extraOptions.enabled = (env != 'development');
+  this.options(requireJsOptions, extraOptions);
 };
+
 module.exports = BasbosaAssets;
 
 BasbosaAssets.prototype = {
 
-  options : {
-    enableOpt : false,
+  extraOptions : {
+    includeRequireJs : false,
+    includeAlmond : false,
+    enabled : false,
+  },
+  
+  
+  requireJsOptions : {
+    
   },
   
   contexts : {},
-    
-  setOptions : function(options) {
-    options = options || {};
-    for (var key in options) {
-      this.options[key] = options[key]; 
-    }
-  },
   
   watchedFiles : [],
-  
+    
+  options : function(requireJsOptions, extraOptions) {
+    requireJsOptions = requireJsOptions || {};
+    extraOptions = extraOptions || {};
+    
+    for (var key in requireJsOptions) {
+      this.requireJsOptions[key] = requireJsOptions[key]; 
+    }
+    
+    for (var key in extraOptions) {
+      this.extraOptions[key] = extraOptions[key]; 
+    }
+    
+    return {
+      requireJsOptions : this.requireJsOptions,
+      extraOptions : this.extraOptions
+      
+    };
+  },
+   
   createContext : function(context) {
     this.contexts[context] = {
       js : [],
@@ -56,19 +76,29 @@ BasbosaAssets.prototype = {
     }
   },
   
-  flushCjs : function(context) {
-    if (typeof context === 'undefined') context = 'default';
-    if (!this.options.enableOpt) return this.flushJs(context); 
-    
-    if (!this.contexts[context].cjs) {
-      this.processJs(context);
-      return this.flushJs(context);
+  flushCjs : function(context, cb) {
+    if (typeof context === 'function') {
+      cb = context;
+      context = 'default';
+      
     }
+    if (typeof context === 'undefined') context = 'default';
+    
+    if (!this.extraOptions.enabled) {
+      return this.flushJs(context, cb);
+    }
+    
+    // If no compressed js file is ready for this context, create one
+    if (!this.contexts[context].cjs) {
+      return this.processJs(context, cb);
+    }
+    
+    cb(this.contexts[context].cjs);
     return this.contexts[context].cjs;
     
   },
   
-  flushJs : function(context) {
+  flushJs : function(context, cb) {
     var res = '', length, jsCont;
     if (typeof context === 'undefined') context = 'default';
     this.assertContext(context);
@@ -77,14 +107,20 @@ BasbosaAssets.prototype = {
     for (var i = 0; i < length; i++) {
       res += '<script src="' + jsCont[i] + '"></script>';
     }
+    cb(res);
     return res;   
   },
   
-  processJs : function(context) {
-    var self = this;
+  processJs : function(context, cb) {
+    var self = this, build = {};
     this.assertContext(context);
-    this.options.include = this.contexts[context].js;
-    var build = this.options;
+    
+    // make copy of current options of requireJsOptions
+    for (var key in this.requireJsOptions) {
+      build[key] = this.requireJsOptions[key];
+    }
+    build.include = this.contexts[context].js;
+    
     Basbosa('Logger').debug('Optimizing js for context :'  + context);
     
     RequireJs.optimize(build, function(buildResponse) {
@@ -105,7 +141,6 @@ BasbosaAssets.prototype = {
           // Delete all old build files
           file = Path.dirname(build.out) + '/' + file;
           if (file.indexOf(build.out) > -1 && file.indexOf(digest) == -1) {
-            
             Fs.unlink(file, function(err) {
               if (err) throw err;
             });
@@ -115,6 +150,7 @@ BasbosaAssets.prototype = {
       
       target = target.replace(build.baseUrl, '');
       self.contexts[context].cjs = '<script src="' + target + '"></script>';
+      cb(self.contexts[context].cjs);
     });   
   }
 };
