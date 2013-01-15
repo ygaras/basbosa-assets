@@ -64,11 +64,11 @@ BasbosaAssets.prototype = {
     }
   },
  
-  cjs : function(path, context, assetType) {
+  js : function(path, context, assetType) {
     if (typeof context === 'undefined') context = 'default';
     if (typeof assetType === 'undefined') assetType = 'js';
     //  If file already exists, just return
-    if (this.watchedFiles[path + ':' + context]) {
+    if (this.watchedFiles[path + '.' + assetType  + ':' + context]) {
      return;
     } else {
      if (typeof this.contexts[context] === 'undefined') this.createContext(context);
@@ -77,8 +77,8 @@ BasbosaAssets.prototype = {
     }
   },
   
-  ccss : function(path, context) {
-    return this.cjs(path, context, 'css');
+  css : function(path, context) {
+    return this.js(path, context, 'css');
   },
   
   flushCjs : function(context, cb, assetType) {
@@ -117,7 +117,7 @@ BasbosaAssets.prototype = {
     jsCont = this.contexts[context].js;
     length = jsCont.length; 
     for (var i = 0; i < length; i++) {
-      res += '<script src="' + jsCont[i] + '"></script>';
+      res += '<script src="' + jsCont[i] + '.js"></script>';
     }
     cb(res);
     return res;   
