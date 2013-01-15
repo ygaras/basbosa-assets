@@ -64,42 +64,54 @@ BasbosaAssets.prototype = {
     }
   },
  
-  cjs : function(path, context) {
+  cjs : function(path, context, assetType) {
     if (typeof context === 'undefined') context = 'default';
+    if (typeof assetType === 'undefined') assetType = 'js';
     //  If file already exists, just return
     if (this.watchedFiles[path + ':' + context]) {
      return;
     } else {
      if (typeof this.contexts[context] === 'undefined') this.createContext(context);
-     this.contexts[context].js.push(path);
+     this.contexts[context][assetType].push(path);
      this.watchedFiles[path + ':' + context] = 1;
     }
   },
   
-  flushCjs : function(context, cb) {
+  ccss : function(path, context) {
+    return this.cjs(path, context, 'css');
+  },
+  
+  flushCjs : function(context, cb, assetType) {
+    var assetClass;
     if (typeof context === 'function') {
       cb = context;
       context = 'default';
-      
     }
+    if (typeof assetType === 'undefined') assetType = 'js';
     if (typeof context === 'undefined') context = 'default';
     
+    assetClass = assetType.charAt(0).toUpperCase() + assetType.slice(1);;
+        
     if (!this.extraOptions.enabled) {
-      return this.flushJs(context, cb);
+      return this['flush' + assetClass](context, cb);
     }
     
-    // If no compressed js file is ready for this context, create one
-    if (!this.contexts[context].cjs) {
-      return this.processJs(context, cb);
+    // If no compressed asset file is ready for this context, create one
+    if (!this.contexts[context]['c' + assetType]) {
+      return this['process' + assetClass](context, cb);
     }
     
-    cb(this.contexts[context].cjs);
-    return this.contexts[context].cjs;
-    
+    cb(this.contexts[context]['c' + assetType]);
+    return this.contexts[context]['c' + assetType]; 
+  },
+  
+  flushCcss : function(context, cb) {
+    return this.flushCjs(context, cb, 'css');
   },
   
   flushJs : function(context, cb) {
     var res = '', length, jsCont;
+   
     if (typeof context === 'undefined') context = 'default';
     this.assertContext(context);
     jsCont = this.contexts[context].js;
@@ -111,6 +123,20 @@ BasbosaAssets.prototype = {
     return res;   
   },
   
+  flushCss : function(context, cb) {
+    var res = '', length, cssCont;
+    
+    if (typeof context === 'undefined') context = 'default';
+    this.assertContext(context);
+    cssCont = this.contexts[context].css;
+    length = cssCont.length; 
+    for (var i = 0; i < length; i++) {
+      res += '<link rel="stylesheet" href="' + cssCont[i] + '">';
+    }
+    cb(res);
+    return res;
+  },
+    
   processJs : function(context, cb) {
     var self = this, build = {};
     this.assertContext(context);
@@ -135,7 +161,7 @@ BasbosaAssets.prototype = {
       }
       
       Fs.writeFileSync(target, contents);
-
+        
       Fs.readdir(Path.dirname(target), function(err, files) {
         files.forEach(function(file) {
           // Delete all old build files
@@ -152,5 +178,40 @@ BasbosaAssets.prototype = {
       self.contexts[context].cjs = '<script src="' + target + '"></script>';
       cb(self.contexts[context].cjs);
     });   
-  }
+  },
+  
+  processCss : function(context, cb) {
+    var self = this, i, contents = '', cssFiles, target, md5sum, digest;
+    this.assertContext(context);
+    cssFiles = this.contexts[context].css;
+    
+    for (i = 0; i < cssFiles.length; i++) {
+      contents += Fs.readFileSync(this.requireJsOptions.baseUrl + '/' + cssFiles[i] + '.css');
+    }
+  
+    md5sum = Crypto.createHash('md5');
+    md5sum.update(contents);
+    digest = md5sum.digest('hex');
+    
+    target = this.requireJsOptions.outCss + '-' + digest + '.css';
+    Fs.writeFileSync(target, contents) ; 
+    
+    Fs.readdir(Path.dirname(target), function(err, files) {
+      files.forEach(function(file) {
+        // Delete all old build files
+        file = Path.dirname(self.requireJsOptions.outCss) + '/' + file;
+        if (file.indexOf(self.requireJsOptions.outCss) > -1 && file.indexOf(digest) == -1) {
+          Fs.unlink(file, function(err) {
+            if (err) throw err;
+          });
+        }
+      });
+    });
+    
+    target = target.replace(self.requireJsOptions.baseUrl, '');
+    self.contexts[context].ccss = '<link rel="stylesheet" href="' + target + '">';
+    cb(self.contexts[context].ccss);
+  },
+  
+  
 };
