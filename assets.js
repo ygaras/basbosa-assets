@@ -131,7 +131,7 @@ BasbosaAssets.prototype = {
     cssCont = this.contexts[context].css;
     length = cssCont.length; 
     for (var i = 0; i < length; i++) {
-      res += '<link rel="stylesheet" href="' + cssCont[i] + '">';
+      res += '<link rel="stylesheet" href="' + cssCont[i] + '.css">';
     }
     cb(res);
     return res;
