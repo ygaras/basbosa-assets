@@ -67,13 +67,14 @@ BasbosaAssets.prototype = {
   js : function(path, context, assetType) {
     if (typeof context === 'undefined') context = 'default';
     if (typeof assetType === 'undefined') assetType = 'js';
+    var watchedToken = path + '.' + assetType  + ':' + context;
     //  If file already exists, just return
-    if (this.watchedFiles[path + '.' + assetType  + ':' + context]) {
+    if (this.watchedFiles[watchedToken]) {
      return;
     } else {
      if (typeof this.contexts[context] === 'undefined') this.createContext(context);
      this.contexts[context][assetType].push(path);
-     this.watchedFiles[path + ':' + context] = 1;
+     this.watchedFiles[watchedToken] = 1;
     }
   },
   
