@@ -7,7 +7,7 @@ var BasbosaAssets = function(requireJsOptions, extraOptions) {
   // Initialize the default state of enabling compression based on current environment
   var env = process.env.NODE_ENV || 'development';
   extraOptions = extraOptions || {};
-  extraOptions.enabled = (env != 'development');
+  extraOptions.enabled = (env == 'production');
   this.options(requireJsOptions, extraOptions);
 };
 
@@ -146,7 +146,12 @@ BasbosaAssets.prototype = {
     for (var key in this.requireJsOptions) {
       build[key] = this.requireJsOptions[key];
     }
+    
     build.include = this.contexts[context].js;
+    
+    build.include.forEach(function(jsFile, index) {
+      build.include[index] += context == 'css' ? '.css' : '.js';
+    });
     
     Basbosa('Logger').debug('Optimizing js for context :'  + context);
     
@@ -175,7 +180,7 @@ BasbosaAssets.prototype = {
         });
       });
       
-      target = target.replace(build.baseUrl, '');
+      target = target.replace(build.baseUrl, '/');
       self.contexts[context].cjs = '<script src="' + target + '"></script>';
       cb(self.contexts[context].cjs);
     });   
