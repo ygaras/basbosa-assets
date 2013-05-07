@@ -6,8 +6,14 @@ var RequireJs = require('requirejs'),
 var BasbosaAssets = function(requireJsOptions, extraOptions) {
   // Initialize the default state of enabling compression based on current environment
   var env = process.env.NODE_ENV || 'development';
+
+  // if Basbosa is loaded
+  if (typeof Basbosa !== 'undefined') {
+    env = Basbosa('Config').get('env');
+  }
+
   extraOptions = extraOptions || {};
-  extraOptions.enabled = (env == 'production');
+  extraOptions.enabled = (env.indexOf('production') > -1);
   this.options(requireJsOptions, extraOptions);
 };
 
